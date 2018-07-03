@@ -3,34 +3,92 @@
 set -e
 shopt -s nullglob
 
+declare -r SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+declare -r SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+
+
 usage() {
-  echo "Usage: $0 <src_dir> <snapshot_dir> <count> [ <prefix> ]"
-  echo ""
-  echo "Example: $0 / /.snapshots 7"
+  cat <<EOM
+Syntax:
+
+    $SCRIPT_DIR/$SCRIPT_NAME -s <src_dir> -d <snapshot_dir> -c <count> [ -p <prefix> ]
+
+Options:
+
+    -s <src_dir>        The source tree to be snapshotted
+    -d <snapshot_dir>   The destination directory under which to create a
+                        snapshot
+    -c <count>          Maximum number of snapshots to retain
+    -p <prefix>         Prefix for the snapshot directory name
+
+Notes:
+
+* This will copy \`<src_dir>\` to \`<snapshot_dir>/<prefix><timesamp>\`. All files
+  will be copied using reflinks to minimize disk space usage.
+* When it's done copying it will remove old snapshot directories as necessary in
+  order to retain no more than \`<count>\` snapshots.
+* \`<snapshot_dir>\` must be on the same filesystem as \`<src_dir>\`.
+* It will skip over any files/directories inside \`<src_dir>\` that are on a
+  different filesystem.
+* \`<prefix>\` defaults to \`snapshot_\`.
+
+Example cronjob:
+
+    0 0 * * * $SCRIPT_DIR/$SCRIPT_NAME -s / -d /.snapshots -c 7 > /var/log/reflink-snap.log 2>&1
+
+This example will copy and retain up to a week's worth of daily snapshots under
+\`/.snapshots/snapshot_<snapshot_timestamp>\`.
+EOM
   exit 1
 }
 
-if [[ $# -lt 3 || $# -gt 4 ]]; then
+declare -i COUNT=0
+declare -i DRY_RUN=0
+
+while getopts c:d:hp:s: arg; do
+  case $arg in
+    c)
+      if ! [[ "$OPTARG" =~ ^[0-9]+$ ]]; then
+        echo "$OPTARG is an invalid snapshot count"
+        echo ""
+        usage
+      fi
+      if [[ "$OPTARG" -eq 0 ]]; then
+        echo "<count> must be greater than 0"
+        echo ""
+        usage
+      fi
+      COUNT="$OPTARG"
+      ;;
+    d)
+      SNAPSHOT_DIR="$OPTARG"
+      ;;
+    p)
+      PREFIX="$OPTARG"
+      ;;
+    s)
+      SRC_DIR="$OPTARG"
+      ;;
+    h)
+      usage
+      ;;
+    \?)
+      echo ""
+      usage
+      ;;
+  esac
+done
+
+PREFIX="${PREFIX:-snapshot_}"
+
+if [[ $COUNT -eq 0 ||
+    -z "$SNAPSHOT_DIR" ||
+    -z "$PREFIX" ||
+    -z "$SRC_DIR" ]]; then
   usage
 fi
 
-if ! [[ "$3" =~ ^[0-9]+$ ]]; then
-  echo "$3 is an invalid snapshot count"
-  echo ""
-  usage
-fi
-
-declare -r SRC_DIR="$1"
-declare -r SNAPSHOT_DIR="$2"
-declare -ir COUNT="$3"
-declare -r PREFIX="${4:-snapshot_}"
 declare -r LATEST_SYMLINK="$SNAPSHOT_DIR/latest"
-
-if [[ $COUNT -eq 0 ]]; then
-  echo "<count> must be greater than 0"
-  echo ""
-  usage
-fi
 
 
 # Create snapshots

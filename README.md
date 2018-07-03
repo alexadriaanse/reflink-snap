@@ -12,7 +12,15 @@ Usage
 
 Syntax:
 
-    .../snapshot <src_dir> <snapshot_dir> <count> [ <prefix> ]"
+    /opt/reflink-snap/snapshot -s <src_dir> -d <snapshot_dir> -c <count> [ -p <prefix> ]
+
+Options:
+
+    -s <src_dir>        The source tree to be snapshotted
+    -d <snapshot_dir>   The destination directory under which to create a
+                        snapshot
+    -c <count>          Maximum number of snapshots to retain
+    -p <prefix>         Prefix for the snapshot directory name
 
 Notes:
 
@@ -27,7 +35,7 @@ Notes:
 
 Example cronjob:
 
-    0 0 * * * .../snapshot / /.snapshots 7 > .../snapshot.log 2>&1
+    0 0 * * * /opt/reflink-snap/snapshot -s / -d /.snapshots -c 7 > /var/log/reflink-snap.log 2>&1
 
 This example will copy and retain up to a week's worth of daily snapshots under
 `/.snapshots/snapshot_<snapshot_timestamp>`.
