@@ -12,10 +12,12 @@ Usage
 
 Syntax:
 
-    /opt/reflink-snap/snapshot -s <src_dir> -d <snapshot_dir> -c <count> [ -p <prefix> ]
+    /opt/reflink-snap/snapshot [ -n ] -s <src_dir> -d <snapshot_dir> -c <count> [ -p <prefix> ]
 
 Options:
 
+    -n                  Dry run, do not perform any actions, just display what
+                        it would do
     -s <src_dir>        The source tree to be snapshotted
     -d <snapshot_dir>   The destination directory under which to create a
                         snapshot

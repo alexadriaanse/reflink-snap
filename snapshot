@@ -11,10 +11,12 @@ usage() {
   cat <<EOM
 Syntax:
 
-    $SCRIPT_DIR/$SCRIPT_NAME -s <src_dir> -d <snapshot_dir> -c <count> [ -p <prefix> ]
+    $SCRIPT_DIR/$SCRIPT_NAME [ -n ] -s <src_dir> -d <snapshot_dir> -c <count> [ -p <prefix> ]
 
 Options:
 
+    -n                  Dry run, do not perform any actions, just display what
+                        it would do
     -s <src_dir>        The source tree to be snapshotted
     -d <snapshot_dir>   The destination directory under which to create a
                         snapshot
@@ -42,8 +44,16 @@ EOM
   exit 1
 }
 
+run() {
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "$@"
+  else
+    "$@"
+  fi
+}
+
 create_snapshot() {
-  mkdir -p "$SNAPSHOT_DIR"
+  run mkdir -p "$SNAPSHOT_DIR"
 
   local -ar existing_snapshots=("${SNAPSHOT_DIR}/${PREFIX}"*)
 
@@ -58,14 +68,14 @@ create_snapshot() {
   local -r new_snapshot_dir="${SNAPSHOT_DIR}/${PREFIX}$(date --iso-8601=seconds)"
 
   echo "Creating snapshot $new_snapshot_dir"
-  mkdir "$new_snapshot_dir"
+  run mkdir "$new_snapshot_dir"
 
   # The output redirection below simply swaps stdout and stderr so that we can
   # filter cp's stderr output. After that's filtered we swap stdout and stderr
   # again to restore the original stdout and stderr
-  cp -a --reflink=always -x "$SRC_DIR"/* "$new_snapshot_dir/"
-  rm -f "$LATEST_SYMLINK"
-  ln -s "$(basename "$new_snapshot_dir")" "$LATEST_SYMLINK"
+  run cp -a --reflink=always -x "$SRC_DIR"/* "$new_snapshot_dir/"
+  run rm -f "$LATEST_SYMLINK"
+  run ln -s "$(basename "$new_snapshot_dir")" "$LATEST_SYMLINK"
   echo "Done"
 }
 
@@ -77,7 +87,7 @@ delete_old_snapshots() {
     local -a sorted_snapshots
     readarray -td '' sorted_snapshots < <(printf '%s\0' "${all_snapshots[@]}" | sort -z)
     for remove_snapshot in "${sorted_snapshots[@]:0:$num_to_remove}"; do
-      rm -rf "$remove_snapshot"
+      run rm -rf "$remove_snapshot"
       echo "Removed snapshot $remove_snapshot"
     done
   fi
@@ -87,7 +97,7 @@ delete_old_snapshots() {
 declare -i COUNT=0
 declare -i DRY_RUN=0
 
-while getopts c:d:hp:s: arg; do
+while getopts c:d:hnp:s: arg; do
   case $arg in
     c)
       if ! [[ "$OPTARG" =~ ^[0-9]+$ ]]; then
@@ -104,6 +114,9 @@ while getopts c:d:hp:s: arg; do
       ;;
     d)
       SNAPSHOT_DIR="$OPTARG"
+      ;;
+    n)
+      DRY_RUN=1
       ;;
     p)
       PREFIX="$OPTARG"
