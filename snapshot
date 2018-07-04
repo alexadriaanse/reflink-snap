@@ -3,8 +3,9 @@
 set -e
 shopt -s nullglob
 
-declare -r SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-declare -r SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+declare -r SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
+declare -r SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+declare -r SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
 
 
 usage() {
@@ -53,7 +54,9 @@ run() {
 }
 
 create_snapshot() {
-  run mkdir -p "$SNAPSHOT_DIR"
+  local -r latest_symlink="$SNAPSHOT_DIR/latest"
+
+  run mkdir -p -- "$SNAPSHOT_DIR"
 
   local -ar existing_snapshots=("${SNAPSHOT_DIR}/${PREFIX}"*)
 
@@ -68,14 +71,14 @@ create_snapshot() {
   local -r new_snapshot_dir="${SNAPSHOT_DIR}/${PREFIX}$(date --iso-8601=seconds)"
 
   echo "Creating snapshot $new_snapshot_dir"
-  run mkdir "$new_snapshot_dir"
+  run mkdir -- "$new_snapshot_dir"
 
   # The output redirection below simply swaps stdout and stderr so that we can
   # filter cp's stderr output. After that's filtered we swap stdout and stderr
   # again to restore the original stdout and stderr
-  run cp -a --reflink=always -x "$SRC_DIR"/* "$new_snapshot_dir/"
-  run rm -f "$LATEST_SYMLINK"
-  run ln -s "$(basename "$new_snapshot_dir")" "$LATEST_SYMLINK"
+  run cp -a --reflink=always -x -- "$SRC_DIR"/* "$new_snapshot_dir/"
+  run rm -f -- "$latest_symlink"
+  run ln -s "$(basename "$new_snapshot_dir")" -- "$latest_symlink"
   echo "Done"
 }
 
@@ -86,8 +89,9 @@ delete_old_snapshots() {
   if [[ $num_to_remove -gt 0 ]]; then
     local -a sorted_snapshots
     readarray -td '' sorted_snapshots < <(printf '%s\0' "${all_snapshots[@]}" | sort -z)
+    local remove_snapshot
     for remove_snapshot in "${sorted_snapshots[@]:0:$num_to_remove}"; do
-      run rm -rf "$remove_snapshot"
+      run rm -rf -- "$remove_snapshot"
       echo "Removed snapshot $remove_snapshot"
     done
   fi
@@ -143,8 +147,7 @@ if [[ $COUNT -eq 0 ||
   usage
 fi
 
-declare -r LATEST_SYMLINK="$SNAPSHOT_DIR/latest"
-
 
 create_snapshot
+
 delete_old_snapshots
