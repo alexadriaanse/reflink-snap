@@ -46,15 +46,11 @@ This example will copy and retain up to a week's worth of daily snapshots under
 Caveats
 -------
 
-If `<snapshot_dir>` is within `<src_dir>` it should start with a `.` and be
-located at the root level of `<src_dir>`. That way it is excluded when copying
-`<src_dir>` to `<snapshot_dir>/.../`. If you don't follow this precaution
-new snapshots will end up including a copy of all previous snapshots, and you'll
-end up with exponential file/directory growth.
-
-Any files/directories that start with `.` at the root level in `<src_dir>` are
-excluded for the above reason. Any `.` files/directories within subdirectories
-are included though.
+If `<snapshot_dir>` is within `<src_dir>` it should be located at the root level
+of `<src_dir>`. That way it is excluded when copying `<src_dir>` to
+`<snapshot_dir>/.../`. If you don't follow this precaution new snapshots will
+end up including a copy of all previous snapshots, and you'll end up with
+exponential file/directory growth.
 
 This utility will take a while to run if you have lots of files/directories.
 
